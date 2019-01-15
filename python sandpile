@@ -1,0 +1,138 @@
+class Sandpile():
+    def __init__(self,rows,columns):
+        self.rows=rows
+        self.columns=columns
+        self.places=rows*columns
+        self.values=[]
+        for place in range(self.places):
+            self.values.append(0)
+        self.threes=[]
+        for place in range(self.places):
+            self.threes.append(3)
+    def print(self):
+        #Use this to see your sandpile
+        visuals=str()
+        for value in range(self.places):
+            if self.values[value]>3:
+                visuals=visuals+"▉"
+            elif self.values[value]==3:
+                visuals=visuals+"㊂"
+            elif self.values[value]==2:
+                visuals=visuals+"㊁"
+            elif self.values[value]==1:
+                visuals=visuals+"㊀"
+            elif self.values[value]==0:
+                visuals=visuals+"〇"
+            else:
+                visuals=visuals+"▁"
+        for row in range(self.rows):
+            a=row*self.columns
+            b=a+self.columns
+            print (visuals[a:b])
+        print("------------------")
+    def assign(self,inputs):
+        #Assigns values to your sandpile
+        for nput in range(len(inputs)):
+            if inputs[nput]>=0:
+                self.values[nput]=inputs[nput]
+            else:
+                continue
+    def spill(self,place):
+        #Collapses any piles that are greater than 3, spilling one grain to each neighboring pile
+        tempS=Sandpile(self.rows,self.columns)
+        tempS.values[place]=-4
+        if place//self.columns>0:
+            tempS.values[place-self.columns]=1
+        if place//self.columns<self.rows-1:
+            tempS.values[place+self.columns]=1
+        if place%self.columns>0:
+            tempS.values[place-1]=1
+        if place%self.columns<self.columns-1:
+            tempS.values[place+1]=1
+        return tempS
+    def __add__(self,addend):
+        #Add two sandpiles, returns the reult
+        if self.rows!=addend.rows or self.columns!=addend.columns:
+            print("Whoah, there, buddy")
+        else:
+            sumvalues=[]
+            for place in range(self.places):
+                x=self.values[place]+addend.values[place]
+                sumvalues.append(x)
+            summ=Sandpile(self.rows,self.columns)
+            summ.assign(sumvalues)
+            return summ
+    def add(self,addend):
+        #Add the addend to an existing sandpile, but the existing one is changed
+        if self.rows!=addend.rows or self.columns!=addend.columns:
+            print("Whoah, there, buddy")
+        else:
+            for place in range(self.places):
+                self.values[place]+=addend.values[place]
+    def all(self,num):
+        #Assigns a single number to all piles in a sandpile
+        allnum=Sandpile(self.rows,self.columns)
+        numvalues=[]
+        for i in range(self.places):
+            numvalues.append(num)
+        allnum.assign(numvalues)
+        return allnum
+    def collapse(self):
+        #Performs the spill function until all piles are 3 or less
+        while max(self.values)>3:
+            spills=Sandpile(self.rows,self.columns)
+            for place in range(self.places):
+                if self.values[place]>3:
+                    spills.add(self.spill(place))
+                else:
+                    continue
+            self.add(spills)
+    def visualize(self):
+        #Performs the spill function until all piles are 3 or less and prints the result at each step
+        self.print()
+        while max(self.values)>3:
+            spills=Sandpile(self.rows,self.columns)
+            for place in range(self.places):
+                if self.values[place]>3:
+                    spills.add(self.spill(place))
+                else:
+                    continue
+            self.add(spills)
+            self.print()
+    def scalar(self,scalar):
+        #Multiplies each pile by the scalar
+        for place in range(self.places):
+            self.values[place]*=scalar
+    def complement(self):
+        #Finds the sandpile that can be added to an existing sandpile to get a sandpile with only 3s 
+        temp=Sandpile(self.rows,self.columns)
+        temp.assign(self.values)
+        temp.collapse()
+        temp.scalar(-1)
+        temp2=self.all(3)
+        temp2+=temp
+        return temp2
+    def core(self):
+        #This is a sandpile used to calculate the identity and inverses
+        core=self.all(6).complement()
+        return core
+    def identity(self):
+        #The sandpile that is the identity of the sandpile group
+        identity=self.all(3)
+        identity.add(self.core())
+        identity.collapse()
+        return identity
+    def inverse(self):
+        #The sandpile that is the inverse of the given sandpile (if it is in the group)
+        #it will return a false positive if the sandpile is not in the group
+        inverse=self.complement()
+        inverse.add(self.core())
+        inverse.collapse()
+        return inverse
+
+sandpile=Sandpile(10,10)
+test=sandpile.identity()
+test.scalar(10)
+all10=sandpile.all(10)
+test.add(all10)
+test.visualize()

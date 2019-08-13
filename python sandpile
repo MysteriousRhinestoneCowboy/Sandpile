@@ -1,138 +1,858 @@
-class Sandpile():
-    def __init__(self,rows,columns):
-        self.rows=rows
-        self.columns=columns
-        self.places=rows*columns
-        self.values=[]
-        for place in range(self.places):
-            self.values.append(0)
-        self.threes=[]
-        for place in range(self.places):
-            self.threes.append(3)
-    def print(self):
-        #Use this to see your sandpile
-        visuals=str()
-        for value in range(self.places):
-            if self.values[value]>3:
-                visuals=visuals+"▉"
-            elif self.values[value]==3:
-                visuals=visuals+"㊂"
-            elif self.values[value]==2:
-                visuals=visuals+"㊁"
-            elif self.values[value]==1:
-                visuals=visuals+"㊀"
-            elif self.values[value]==0:
-                visuals=visuals+"〇"
-            else:
-                visuals=visuals+"▁"
-        for row in range(self.rows):
-            a=row*self.columns
-            b=a+self.columns
-            print (visuals[a:b])
-        print("------------------")
-    def assign(self,inputs):
-        #Assigns values to your sandpile
-        for nput in range(len(inputs)):
-            if inputs[nput]>=0:
-                self.values[nput]=inputs[nput]
-            else:
-                continue
-    def spill(self,place):
-        #Collapses any piles that are greater than 3, spilling one grain to each neighboring pile
-        tempS=Sandpile(self.rows,self.columns)
-        tempS.values[place]=-4
-        if place//self.columns>0:
-            tempS.values[place-self.columns]=1
-        if place//self.columns<self.rows-1:
-            tempS.values[place+self.columns]=1
-        if place%self.columns>0:
-            tempS.values[place-1]=1
-        if place%self.columns<self.columns-1:
-            tempS.values[place+1]=1
-        return tempS
-    def __add__(self,addend):
-        #Add two sandpiles, returns the reult
-        if self.rows!=addend.rows or self.columns!=addend.columns:
-            print("Whoah, there, buddy")
-        else:
-            sumvalues=[]
-            for place in range(self.places):
-                x=self.values[place]+addend.values[place]
-                sumvalues.append(x)
-            summ=Sandpile(self.rows,self.columns)
-            summ.assign(sumvalues)
-            return summ
-    def add(self,addend):
-        #Add the addend to an existing sandpile, but the existing one is changed
-        if self.rows!=addend.rows or self.columns!=addend.columns:
-            print("Whoah, there, buddy")
-        else:
-            for place in range(self.places):
-                self.values[place]+=addend.values[place]
-    def all(self,num):
-        #Assigns a single number to all piles in a sandpile
-        allnum=Sandpile(self.rows,self.columns)
-        numvalues=[]
-        for i in range(self.places):
-            numvalues.append(num)
-        allnum.assign(numvalues)
-        return allnum
-    def collapse(self):
-        #Performs the spill function until all piles are 3 or less
-        while max(self.values)>3:
-            spills=Sandpile(self.rows,self.columns)
-            for place in range(self.places):
-                if self.values[place]>3:
-                    spills.add(self.spill(place))
-                else:
-                    continue
-            self.add(spills)
-    def visualize(self):
-        #Performs the spill function until all piles are 3 or less and prints the result at each step
-        self.print()
-        while max(self.values)>3:
-            spills=Sandpile(self.rows,self.columns)
-            for place in range(self.places):
-                if self.values[place]>3:
-                    spills.add(self.spill(place))
-                else:
-                    continue
-            self.add(spills)
-            self.print()
-    def scalar(self,scalar):
-        #Multiplies each pile by the scalar
-        for place in range(self.places):
-            self.values[place]*=scalar
-    def complement(self):
-        #Finds the sandpile that can be added to an existing sandpile to get a sandpile with only 3s 
-        temp=Sandpile(self.rows,self.columns)
-        temp.assign(self.values)
-        temp.collapse()
-        temp.scalar(-1)
-        temp2=self.all(3)
-        temp2+=temp
-        return temp2
-    def core(self):
-        #This is a sandpile used to calculate the identity and inverses
-        core=self.all(6).complement()
-        return core
-    def identity(self):
-        #The sandpile that is the identity of the sandpile group
-        identity=self.all(3)
-        identity.add(self.core())
-        identity.collapse()
-        return identity
-    def inverse(self):
-        #The sandpile that is the inverse of the given sandpile (if it is in the group)
-        #it will return a false positive if the sandpile is not in the group
-        inverse=self.complement()
-        inverse.add(self.core())
-        inverse.collapse()
-        return inverse
+import tkinter as tk
+from tkinter import *
+import random
 
-sandpile=Sandpile(10,10)
-test=sandpile.identity()
-test.scalar(10)
-all10=sandpile.all(10)
-test.add(all10)
-test.visualize()
+blackAndWhite = ("white", "lightgray", "darkgray", "gray", "black", "red")
+primaryColors = ("white", "blue", "green", "red", "black", "gray")
+rainbow = ("blue", "green", "yellow", "orange", "red", "black")
+
+class Sandpile:
+    def __init__(self, width = 10, height = 10, windowHeight = 900, windowWidth = 1000,
+                 colors = blackAndWhite, speed = 100):
+        self.hideText = False
+        self.addendHideText = False
+        self.speed = speed
+        self.colors = colors
+        self.height = height
+        self.width = width
+        self.root = tk.Tk()
+        self.windowWidth = windowWidth
+        self.windowHeight = windowHeight
+        self.addOneConstant = 1
+        self.penSize = 1
+        windowDimensions = "{}x{}".format(str(self.windowWidth), str(self.windowHeight))
+        self.root.geometry(windowDimensions)
+
+        #Lists the values of the sandpile in the form self.values[i][j]
+        self.values = []
+        columnValues = []
+        for row in range(self.height):
+            columnValues.append(0)
+        for column in range(self.width):
+            self.values.append(columnValues[:])
+        self.values = self.values[:]
+
+        #Creates the identity
+        doubleMaxSandpile = []
+        columnValues = []
+        for row in range(self.height):
+            columnValues.append(6)
+        for column in range(self.width):
+            doubleMaxSandpile.append(columnValues[:])
+        doubleMaxSandpile = doubleMaxSandpile[:]
+
+        tooTall = True
+        while tooTall:
+            tooTall = False
+            for i in range(self.width):
+                for j in range(self.height):
+                    if doubleMaxSandpile[i][j] >= 4:
+                        doubleMaxSandpile[i][j] -= 4
+                        tooTall = True
+                        if i != 0:
+                            doubleMaxSandpile[i - 1][j] += 1
+                        if j != 0:
+                            doubleMaxSandpile[i][j - 1] += 1
+                        if i != self.width - 1:
+                            doubleMaxSandpile[i + 1][j] += 1
+                        if j != self.height - 1:
+                            doubleMaxSandpile[i][j + 1] += 1
+        for i in range(self.width):
+            for j in range(self.height):
+                doubleMaxSandpile[i][j] = 6 - doubleMaxSandpile[i][j]
+
+        tooTall = True
+        while tooTall:
+            tooTall = False
+            for i in range(self.width):
+                for j in range(self.height):
+                    if doubleMaxSandpile[i][j] >= 4:
+                        doubleMaxSandpile[i][j] -= 4
+                        tooTall = True
+                        if i != 0:
+                            doubleMaxSandpile[i - 1][j] += 1
+                        if j != 0:
+                            doubleMaxSandpile[i][j - 1] += 1
+                        if i != self.width - 1:
+                            doubleMaxSandpile[i + 1][j] += 1
+                        if j != self.height - 1:
+                            doubleMaxSandpile[i][j + 1] += 1
+        self.identity = doubleMaxSandpile
+
+        #creates the sandpile
+        self.sandCanvas = Canvas(self.root, width = self.windowWidth - 100, height = self.windowHeight)
+        self.sandCanvas.grid(column = 0, row = 0)
+        self.sandCanvas.bind("<Button-1>", self.addSand)
+        self.sandCanvas.bind("<Button-2>", self.setPile)
+
+        self.cellWidth = (self.windowWidth - 100) / self.width
+        self.cellHeight = self.windowHeight / self.height
+        for xcoord in range(self.width):
+            for ycoord in range(self.height):
+                coordinate = "{}.{}".format(str(xcoord), str(ycoord))
+                x1 = xcoord * self.cellWidth
+                x2 = x1 + self.cellWidth
+                y1 = ycoord * self.cellHeight
+                y2 = y1 + self.cellHeight
+                textX = (x1 + x2) / 2
+                textY = (y1 + y2) / 2
+                textTag = coordinate + "text"
+                self.sandCanvas.create_rectangle(x1, y1, x2, y2, tags = coordinate, fill = self.colors[0])
+                self.sandCanvas.create_text(textX, textY, text="0", tags=textTag, fill=colors[5])
+
+        self.menuFrame = Frame(self.root, height = windowHeight, width = 100)
+        self.menuFrame.grid(row = 0, column = 1)
+        self.menuFrame.pack_propagate(0)
+        label0 = Label(self.menuFrame, bg = self.colors[0], text = "0", fg = self.colors[5])
+        label0.pack(fill = X, side = TOP)
+        label1 = Label(self.menuFrame, bg = self.colors[1], text = "1", fg = self.colors[5])
+        label1.pack(fill = X, side = TOP)
+        label2 = Label(self.menuFrame, bg = self.colors[2], text = "2", fg = self.colors[5])
+        label2.pack(fill = X, side = TOP)
+        label3 = Label(self.menuFrame, bg = self.colors[3], text = "3", fg = self.colors[5])
+        label3.pack(fill = X, side = TOP)
+        label4 = Label(self.menuFrame, bg = self.colors[4], text = "4+", fg = self.colors[5])
+        label4.pack(fill = X, side = TOP)
+
+        #Create the buttons
+        self.penSizeButton = Button(self.menuFrame, text="Pen Size 1", command=self.penSizeUp)
+        self.penSizeButton.pack(fill=X, side=TOP)
+        self.penSizeButton.bind("<Button-2>", self.penSet)
+
+        self.hidispButton = Button(self.menuFrame, text = "Hide Text", command = self.textDisplay)
+        self.hidispButton.pack(fill = X, side = TOP)
+
+        self.addendButton = Button(self.menuFrame, text = "New Sandpile", command = self.addSandpile)
+        self.addendButton.pack(fill = X, side = TOP)
+
+        menuFill1 = Frame(self.menuFrame, width = 100, height = 40)
+        menuFill1.pack(side = TOP)
+
+        self.identityButton = Button(self.menuFrame, text = "Identity", command = self.addIdentity)
+        self.identityButton.pack(fill = X)
+
+        self.inverseButton = Button(self.menuFrame, text = "Inverse", command = self.invertSandpile)
+        self.inverseButton.pack(fill = X)
+
+        self.conjugateButton = Button(self.menuFrame, text = "Conjugate", command = self.reverse)
+        self.conjugateButton.pack(fill = X)
+
+        self.addOneButton = Button(self.menuFrame, text = "Add 1", command = self.addOne)
+        self.addOneButton.pack(fill = X)
+        self.addOneButton.bind("<Button-2>", self.addNewNum)
+
+        self.scalarButton = Button(self.menuFrame, text = "Multiply", command = self.scalar)
+        self.scalarButton.pack(fill = X)
+
+        menuFill2 = Frame(self.menuFrame, width = 100, height = 40)
+        menuFill2.pack(side = TOP)
+
+        self.collapseButton = Button(self.menuFrame, text = "Collapse", command = self.collapseSand)
+        self.collapseButton.pack(fill = X, side = TOP)
+
+        self.generationButton = Button(self.menuFrame, text = "Generation", command = self.oneGeneration)
+        self.generationButton.pack(fill = X, side = TOP)
+        self.generationButton.bind("<Button-2>", self.multiGenerations)
+
+        menuFill3 = Frame(self.menuFrame, width=100, height=20)
+        menuFill3.pack(side=TOP)
+
+        self.resetButton = Button(self.menuFrame, text = "Reset", command = self.reset)
+        self.resetButton.pack(fill = X, side = TOP)
+        self.resetButton.bind("<Button-2>", self.randomPile)
+
+    def randomPile(self, event):
+        for i in range(self.width):
+            for j in range(self.height):
+                self.values[i][j] = random.randint(0, 3)
+
+        self.updateSand()
+
+    def addendRandomPile(self, event):
+        for i in range(self.width):
+            for j in range(self.height):
+                self.addendValues[i][j] = random.randint(0,3)
+
+        self.addendUpdateSand()
+
+    def reset(self):
+        self.values = []
+        columnValues = []
+        for row in range(self.height):
+            columnValues.append(0)
+        for column in range(self.width):
+            self.values.append(columnValues[:])
+        self.values = self.values[:]
+        self.updateSand()
+
+    def addendReset(self):
+        self.addendValues = []
+        columnValues = []
+        for row in range(self.height):
+            columnValues.append(0)
+        for column in range(self.width):
+            self.addendValues.append(columnValues[:])
+        self.addendValues = self.addendValues[:]
+        self.addendUpdateSand()
+
+    def reverse(self):
+        for i in range(self.width):
+            for j in range(self.height):
+                if self.values[i][j] >= 4:
+                    self.values[i][j] = 0
+                else:
+                    value = self.values[i][j]
+                    self.values[i][j] = 3 - value
+        self.updateSand()
+
+    def addendReverse(self):
+        for i in range(self.width):
+            for j in range(self.height):
+                if self.addendValues[i][j] >= 4:
+                    self.addendValues[i][j] = 0
+                else:
+                    value = self.addendValues[i][j]
+                    self.addendValues[i][j] = 3 - value
+        self.addendUpdateSand()
+
+    def addSand(self, event):
+        coord = self.sandCanvas.gettags(CURRENT)[0]
+        try:
+            if coord[-4:] == "text":
+                coord = coord[:-4]
+        except:
+            pass
+
+        coordLst = coord.split(".")
+        icoord = int(coordLst[0])
+        jcoord = int(coordLst[1])
+        coordInt = (icoord, jcoord)
+
+        self.values[icoord][jcoord] += self.penSize
+        self.updateSand(coordInt)
+
+    def setPile(self, event):
+        #Right now this is just addSand, but I'll need to add an input window and set self.values[icoord][jcoord] to that value
+        coord = self.sandCanvas.gettags(CURRENT)[0]
+        try:
+            if coord[-4:] == "text":
+                coord = coord[:-4]
+        except:
+            pass
+
+        coordLst = coord.split(".")
+        icoord = int(coordLst[0])
+        jcoord = int(coordLst[1])
+        coordInt = (icoord, jcoord)
+
+        oldValue = self.values[icoord][jcoord]
+        intDialogue = simpleDialogue(self.root, "Choose the new value", oldValue)
+        self.root.wait_window(intDialogue.window)
+
+        self.values[icoord][jcoord] = intDialogue.newValue
+        self.updateSand(coordInt)
+
+    def scalar(self):
+        intDialogue = simpleDialogue(self.root, "Choose your scalar", 1)
+        self.root.wait_window(intDialogue.window)
+
+        for i in range(self.width):
+            for j in range(self.height):
+                self.values[i][j] *= intDialogue.newValue
+
+        self.updateSand()
+
+    def addendScalar(self):
+        intDialogue = simpleDialogue(self.addendRoot, "Choose your scalar", 1)
+        self.addendRoot.wait_window(intDialogue.window)
+
+        for i in range(self.width):
+            for j in range(self.height):
+                self.addendValues[i][j] *= intDialogue.newValue
+
+        self.addendUpdateSand()
+
+    def collapseSand(self):
+        stacked = self.oneGeneration()
+
+        self.updateSand()
+        if stacked:
+            self.collapseTimer = self.sandCanvas.after(self.speed, self.collapseSand)
+            self.collapseButton.config(text = "Stop", command = self.stopCollapse)
+
+        else:
+            self.collapseButton.config(text = "Collapse",
+                                       command = lambda: self.sandCanvas.after(self.speed, self.collapseSand))
+
+    def stopCollapse(self):
+        self.sandCanvas.after_cancel(self.collapseTimer)
+        self.collapseButton.config(text="Collapse",
+                                   command=lambda: self.sandCanvas.after(self.speed, self.collapseSand))
+
+    def oneGeneration(self):
+        stacked = False
+        tempValues = []
+        columnValues = []
+        for row in range(self.height):
+            columnValues.append(0)
+        for column in range(self.width):
+            tempValues.append(columnValues[:])
+        tempValues = tempValues[:]
+        for i in range(self.width):
+            for j in range(self.height):
+                if self.values[i][j] >= 4:
+                    self.values[i][j] -= 4
+                    stacked = True
+                    if i != 0:
+                        tempValues[i - 1][j] += 1
+                    if j != 0:
+                        tempValues[i][j - 1] += 1
+                    if i != self.width - 1:
+                        tempValues[i + 1][j] += 1
+                    if j != self.height - 1:
+                        tempValues[i][j + 1] += 1
+
+        for i in range(self.width):
+            for j in range(self.height):
+                if tempValues[i][j] > 0:
+                    self.values[i][j] += tempValues[i][j]
+
+        self.updateSand()
+        return stacked
+
+    def multiGenerations(self, event):
+        intDialogue = simpleDialogue(self.root, "How many generations should be performed?", 0)
+        self.root.wait_window(intDialogue.window)
+
+        newValue = intDialogue.newValue
+        self.count = 0
+        self.limitedGenerations(newValue)
+
+
+    def limitedGenerations(self, count):
+        stacked = self.oneGeneration()
+
+        self.updateSand()
+        if stacked and self.count < count:
+            self.count += 1
+            self.sandCanvas.after(self.speed, lambda: self.limitedGenerations(count))
+
+    def addendMultiGenerations(self, event):
+        intDialogue = simpleDialogue(self.root, "How many generations should be performed?", 0)
+        self.addendRoot.wait_window(intDialogue.window)
+
+        newValue = intDialogue.newValue
+        self.count = 0
+        self.addendLimitedGenerations(newValue)
+
+
+    def addendLimitedGenerations(self, count):
+        stacked = self.addendOneGeneration()
+
+        self.addendUpdateSand()
+        if stacked and self.count < count:
+            self.count += 1
+            self.addendSandCanvas.after(self.speed, lambda: self.addendLimitedGenerations(count))
+
+    def test(self):
+        print("test")
+
+    def addendOneGeneration(self):
+        stacked = False
+        tempValues = []
+        columnValues = []
+        for row in range(self.height):
+            columnValues.append(0)
+        for column in range(self.width):
+            tempValues.append(columnValues[:])
+        tempValues = tempValues[:]
+        for i in range(self.width):
+            for j in range(self.height):
+                if self.addendValues[i][j] >= 4:
+                    self.addendValues[i][j] -= 4
+                    stacked = True
+                    if i != 0:
+                        tempValues[i - 1][j] += 1
+                    if j != 0:
+                        tempValues[i][j - 1] += 1
+                    if i != self.width - 1:
+                        tempValues[i + 1][j] += 1
+                    if j != self.height - 1:
+                        tempValues[i][j + 1] += 1
+
+        for i in range(self.width):
+            for j in range(self.height):
+                if tempValues[i][j] > 0:
+                    self.addendValues[i][j] += tempValues[i][j]
+
+        self.addendUpdateSand()
+        return stacked
+
+    def addendCollapseSand(self):
+        stacked = self.addendOneGeneration()
+
+        self.addendUpdateSand()
+        if stacked:
+            self.addendCollapseTimer = self.addendSandCanvas.after(self.speed, self.addendCollapseSand)
+            self.addendCollapseButton.config(text = "Stop", command = self.addendStopCollapse)
+
+        else:
+            self.addendCollapseButton.config(text = "Collapse",
+                                       command = lambda: self.addendSandCanvas.after(self.speed, self.addendCollapseSand))
+
+    def addendStopCollapse(self):
+        self.addendSandCanvas.after_cancel(self.addendCollapseTimer)
+        self.addendCollapseButton.config(text="Collapse",
+                                   command=lambda: self.addendSandCanvas.after(self.speed, self.addendCollapseSand))
+
+    def addIdentity(self):
+        for i in range(self.width):
+            for j in range(self.height):
+                self.values[i][j] += self.identity[i][j]
+
+        self.updateSand()
+
+    def addendAddIdentity(self):
+        for i in range(self.width):
+            for j in range(self.height):
+                self.addendValues[i][j] += self.identity[i][j]
+
+        self.addendUpdateSand()
+
+    def updateSand(self, coord = False):
+        if coord == False:
+            for icoord in range(self.width):
+                for jcoord in range(self.height):
+                    self.updateSand((icoord, jcoord))
+        else:
+            value = self.values[coord[0]][coord[1]]
+            tag = "{}.{}text".format(str(coord[0]), str(coord[1]))
+            self.sandCanvas.itemconfig(tag, text = str(value))
+            tag = tag[:-4]
+            if value <= 0:
+                fillColor = self.colors[0]
+            if value == 1:
+                fillColor = self.colors[1]
+            if value == 2:
+                fillColor = self.colors[2]
+            if value == 3:
+                fillColor = self.colors[3]
+            if value >= 4:
+                fillColor = self.colors[4]
+            self.sandCanvas.itemconfig(tag, fill = fillColor)
+
+    def textDisplay(self):
+        if self.hideText == False:
+            for i in range(self.width):
+                for j in range(self.height):
+                    tag = "{}.{}text".format(str(i), str(j))
+                    self.sandCanvas.itemconfig(tag, state = HIDDEN)
+            self.hideText = True
+            self.hidispButton.config(text = "Display Text")
+
+        elif self.hideText:
+            for i in range(self.width):
+                for j in range(self.height):
+                    tag = "{}.{}text".format(str(i), str(j))
+                    self.sandCanvas.itemconfig(tag, state = NORMAL)
+            self.hideText = False
+            self.hidispButton.config(text="Hide Text")
+
+    def addendTextDisplay(self):
+        if self.addendHideText == False:
+            for i in range(self.width):
+                for j in range(self.height):
+                    tag = "{}.{}text".format(str(i), str(j))
+                    self.addendSandCanvas.itemconfig(tag, state = HIDDEN)
+            self.addendHideText = True
+            self.addendHidispButton.config(text = "Display Text")
+
+        elif self.addendHideText:
+            for i in range(self.width):
+                for j in range(self.height):
+                    tag = "{}.{}text".format(str(i), str(j))
+                    self.addendSandCanvas.itemconfig(tag, state = NORMAL)
+            self.addendHideText = False
+            self.addendHidispButton.config(text="Hide Text")
+
+    def invertSandpile(self):
+        tooTall = True
+        while tooTall:
+            tooTall = False
+            for i in range(self.width):
+                for j in range(self.height):
+                    if self.values[i][j] >= 4:
+                        self.values[i][j] -= 4
+                        tooTall = True
+                        if i != 0:
+                            self.values[i - 1][j] += 1
+                        if j != 0:
+                            self.values[i][j - 1] += 1
+                        if i != self.width - 1:
+                            self.values[i + 1][j] += 1
+                        if j != self.height - 1:
+                            self.values[i][j + 1] += 1
+
+        doubleMaxSandpile = []
+        columnValues = []
+        for row in range(self.height):
+            columnValues.append(6)
+        for column in range(self.width):
+            doubleMaxSandpile.append(columnValues[:])
+        doubleMaxSandpile = doubleMaxSandpile[:]
+
+        tooTall = True
+        while tooTall:
+            tooTall = False
+            for i in range(self.width):
+                for j in range(self.height):
+                    if doubleMaxSandpile[i][j] >= 4:
+                        doubleMaxSandpile[i][j] -= 4
+                        tooTall = True
+                        if i != 0:
+                            doubleMaxSandpile[i - 1][j] += 1
+                        if j != 0:
+                            doubleMaxSandpile[i][j - 1] += 1
+                        if i != self.width - 1:
+                            doubleMaxSandpile[i + 1][j] += 1
+                        if j != self.height - 1:
+                            doubleMaxSandpile[i][j + 1] += 1
+        for i in range(self.width):
+            for j in range(self.height):
+                doubleMaxSandpile[i][j] = 6 - doubleMaxSandpile[i][j] - self.values[i][j]
+
+        tooTall = True
+        while tooTall:
+            tooTall = False
+            for i in range(self.width):
+                for j in range(self.height):
+                    if doubleMaxSandpile[i][j] >= 4:
+                        doubleMaxSandpile[i][j] -= 4
+                        tooTall = True
+                        if i != 0:
+                            doubleMaxSandpile[i - 1][j] += 1
+                        if j != 0:
+                            doubleMaxSandpile[i][j - 1] += 1
+                        if i != self.width - 1:
+                            doubleMaxSandpile[i + 1][j] += 1
+                        if j != self.height - 1:
+                            doubleMaxSandpile[i][j + 1] += 1
+        self.values = doubleMaxSandpile[:]
+        self.updateSand()
+
+    def addendInvertSandpile(self):
+        tooTall = True
+        while tooTall:
+            tooTall = False
+            for i in range(self.width):
+                for j in range(self.height):
+                    if self.addendValues[i][j] >= 4:
+                        self.addendValues[i][j] -= 4
+                        tooTall = True
+                        if i != 0:
+                            self.addendValues[i - 1][j] += 1
+                        if j != 0:
+                            self.addendValues[i][j - 1] += 1
+                        if i != self.width - 1:
+                            self.addendValues[i + 1][j] += 1
+                        if j != self.height - 1:
+                            self.addendValues[i][j + 1] += 1
+
+        doubleMaxSandpile = []
+        columnValues = []
+        for row in range(self.height):
+            columnValues.append(6)
+        for column in range(self.width):
+            doubleMaxSandpile.append(columnValues[:])
+        doubleMaxSandpile = doubleMaxSandpile[:]
+
+        tooTall = True
+        while tooTall:
+            tooTall = False
+            for i in range(self.width):
+                for j in range(self.height):
+                    if doubleMaxSandpile[i][j] >= 4:
+                        doubleMaxSandpile[i][j] -= 4
+                        tooTall = True
+                        if i != 0:
+                            doubleMaxSandpile[i - 1][j] += 1
+                        if j != 0:
+                            doubleMaxSandpile[i][j - 1] += 1
+                        if i != self.width - 1:
+                            doubleMaxSandpile[i + 1][j] += 1
+                        if j != self.height - 1:
+                            doubleMaxSandpile[i][j + 1] += 1
+        for i in range(self.width):
+            for j in range(self.height):
+                doubleMaxSandpile[i][j] = 6 - doubleMaxSandpile[i][j] - self.addendValues[i][j]
+
+        tooTall = True
+        while tooTall:
+            tooTall = False
+            for i in range(self.width):
+                for j in range(self.height):
+                    if doubleMaxSandpile[i][j] >= 4:
+                        doubleMaxSandpile[i][j] -= 4
+                        tooTall = True
+                        if i != 0:
+                            doubleMaxSandpile[i - 1][j] += 1
+                        if j != 0:
+                            doubleMaxSandpile[i][j - 1] += 1
+                        if i != self.width - 1:
+                            doubleMaxSandpile[i + 1][j] += 1
+                        if j != self.height - 1:
+                            doubleMaxSandpile[i][j + 1] += 1
+        self.addendValues = doubleMaxSandpile[:]
+        self.addendUpdateSand()
+
+    def addOne(self):
+        for i in range(self.width):
+            for j in range(self.height):
+                self.values[i][j] += self.addOneConstant
+        self.updateSand()
+
+    def addendAOne(self):
+        for i in range(self.width):
+            for j in range(self.height):
+                self.Addendvalues[i][j] += self.addOneConstant
+        self.addendUpdateSand()
+
+    def addNewNum(self, event):
+        intDialogue = simpleDialogue(self.root, "Change the added number", self.addOneConstant)
+        self.root.wait_window(intDialogue.window)
+
+        self.addOneConstant = intDialogue.newValue
+
+        buttonText = "Add {}".format(str(self.addOneConstant))
+        self.addOneButton.config(text = buttonText)
+
+        try:
+            self.addendAddOneButton.config(text = buttonText)
+        except:
+            pass
+
+    def addSandpile(self):
+        self.addendRoot = Toplevel(self.root)
+        windowDimensions = "{}x{}".format(str(self.windowWidth), str(self.windowHeight))
+        self.addendRoot.geometry(windowDimensions)
+        self.addendValues = []
+        for column in range(self.width):
+            self.addendValues.append(self.values[column][:])
+
+        # creates the sandpile
+        self.addendSandCanvas = Canvas(self.addendRoot, width=self.windowWidth - 100, height=self.windowHeight)
+        self.addendSandCanvas.grid(column=0, row=0)
+        self.addendSandCanvas.bind("<Button-1>", self.addendAddSand)
+        self.addendSandCanvas.bind("<Button-2>", self.addendSetPile)
+
+        self.cellWidth = (self.windowWidth - 100) / self.width
+        self.cellHeight = self.windowHeight / self.height
+        for xcoord in range(self.width):
+            for ycoord in range(self.height):
+                coordinate = "{}.{}".format(str(xcoord), str(ycoord))
+                x1 = xcoord * self.cellWidth
+                x2 = x1 + self.cellWidth
+                y1 = ycoord * self.cellHeight
+                y2 = y1 + self.cellHeight
+                textX = (x1 + x2) / 2
+                textY = (y1 + y2) / 2
+                textTag = coordinate + "text"
+                value = self.addendValues[xcoord][ycoord]
+                if value <= 0:
+                    color = self.colors[0]
+                if value >= 4:
+                    color = self.colors[4]
+                else:
+                    color = self.colors[value]
+                self.addendSandCanvas.create_rectangle(x1, y1, x2, y2, tags=coordinate, fill=color)
+                self.addendSandCanvas.create_text(textX, textY, text=str(value), tags=textTag, fill=self.colors[5])
+
+        self.addendMenuFrame = Frame(self.addendRoot, height=self.windowHeight, width=100)
+        self.addendMenuFrame.grid(row=0, column=1)
+        self.addendMenuFrame.pack_propagate(0)
+        label0 = Label(self.addendMenuFrame, bg=self.colors[0], text="0", fg=self.colors[5])
+        label0.pack(fill=X, side=TOP)
+        label1 = Label(self.addendMenuFrame, bg=self.colors[1], text="1", fg=self.colors[5])
+        label1.pack(fill=X, side=TOP)
+        label2 = Label(self.addendMenuFrame, bg=self.colors[2], text="2", fg=self.colors[5])
+        label2.pack(fill=X, side=TOP)
+        label3 = Label(self.addendMenuFrame, bg=self.colors[3], text="3", fg=self.colors[5])
+        label3.pack(fill=X, side=TOP)
+        label4 = Label(self.addendMenuFrame, bg=self.colors[4], text="4+", fg=self.colors[5])
+        label4.pack(fill=X, side=TOP)
+
+        self.addendPenSizeButton = Button(self.addendMenuFrame, text = "Pen Size {}".format(str(self.penSize)), command = self.penSizeUp)
+        self.addendPenSizeButton.pack(fill = X, side = TOP)
+        self.addendPenSizeButton.bind("<Button-2>", self.penSet)
+
+        self.addendHidispButton = Button(self.addendMenuFrame, text="Hide Text", command=self.addendTextDisplay)
+        self.addendHidispButton.pack(fill=X, side=TOP)
+
+        menuFill1 = Frame(self.addendMenuFrame, width = 100, height = 40)
+        menuFill1.pack(side = TOP)
+
+        self.addendIdentityButton = Button(self.addendMenuFrame, text="Identity", command=self.addendAddIdentity)
+        self.addendIdentityButton.pack(fill=X, side=TOP)
+
+        self.addendInverseButton = Button(self.addendMenuFrame, text="Inverse", command=self.addendInvertSandpile)
+        self.addendInverseButton.pack(fill=X, side=TOP)
+
+        self.addendConjugateButton = Button(self.addendMenuFrame, text="Conjugate", command=self.addendReverse)
+        self.addendConjugateButton.pack(fill=X, side=TOP)
+
+        self.addendAddOneButton = Button(self.addendMenuFrame, text = "Add {}".format(str(self.addOneConstant)), command = self.addendAddOne)
+        self.addendAddOneButton.pack(fill = X, side=TOP)
+        self.addendAddOneButton.bind("<Button-2>", self.addNewNum)
+
+        self.addendButton.config(text = "Combine", command = self.combineSandpile)
+
+        self.addendScalarButton = Button(self.addendMenuFrame, text = "Scalar", command = self.addendScalar)
+        self.addendScalarButton.pack(fill = X, side = TOP)
+
+        menuFill2 = Frame(self.addendMenuFrame, width=100, height=40)
+        menuFill2.pack(side=TOP)
+
+        self.addendAddendButton = Button(self.addendMenuFrame, text="Combine", command=self.combineSandpile)
+        self.addendAddendButton.pack(fill=X, side=TOP)
+
+        self.addendGenerationButton = Button(self.addendMenuFrame, text="Generation", command=self.addendOneGeneration)
+        self.addendGenerationButton.pack(fill=X, side=TOP)
+        self.addendGenerationButton.bind("<Button-2>", self.addendMultiGenerations)
+
+        self.addendCollapseButton = Button(self.addendMenuFrame, text="Collapse", command=self.addendCollapseSand)
+        self.addendCollapseButton.pack(fill=X, side=TOP)
+
+        menuFill3 = Frame(self.addendMenuFrame, width=100, height=40)
+        menuFill3.pack(side=TOP)
+
+        self.addendResetButton = Button(self.addendMenuFrame, text="Reset", command=self.addendReset)
+        self.addendResetButton.pack(fill=X, side=TOP)
+        self.addendResetButton.bind("<Button-2>", self.addendRandomPile)
+
+    def addendAddOne(self):
+        for i in range(self.width):
+            for j in range(self.height):
+                self.addendValues[i][j] += self.addOneConstant
+        self.addendUpdateSand()
+
+    def penSizeUp(self):
+        values = [1, 2, 3]
+        if self.penSize < 4 and self.penSize > 0:
+            self.penSize %= 3
+            self.penSize += 1
+
+        else: self.penSize = 1
+
+        buttonText = "Pen Size {}".format(str(self.penSize))
+        self.penSizeButton.config(text = buttonText)
+        try:
+            self.addendPenSizeButton.config(text = buttonText)
+        except:
+            pass
+
+    def penSet(self, event):
+        intDialogue = simpleDialogue(self.root, "Choose the pen size", self.penSize)
+        self.root.wait_window(intDialogue.window)
+
+        self.penSize = intDialogue.newValue
+
+        buttonText = "Pen Size {}".format(str(self.penSize))
+        self.penSizeButton.config(text=buttonText)
+        try:
+            self.addendPenSizeButton.config(text=buttonText)
+        except:
+            pass
+
+    def combineSandpile(self):
+        for i in range(self.width):
+            for j in range(self.height):
+                self.values[i][j] += self.addendValues[i][j]
+        self.updateSand()
+
+        self.addendRoot.destroy()
+
+        self.addendButton.config(text="New Sandpile", command=self.addSandpile)
+
+    def addendAddSand(self, event):
+        coord = self.addendSandCanvas.gettags(CURRENT)[0]
+        try:
+            if coord[-4:] == "text":
+                coord = coord[:-4]
+        except:
+            pass
+
+        coordLst = coord.split(".")
+        icoord = int(coordLst[0])
+        jcoord = int(coordLst[1])
+        coordInt = (icoord, jcoord)
+
+        self.addendValues[icoord][jcoord] += self.penSize
+
+        self.addendUpdateSand(coordInt)
+
+    def addendSetPile(self, event):
+        coord = self.addendSandCanvas.gettags(CURRENT)[0]
+        try:
+            if coord[-4:] == "text":
+                coord = coord[:-4]
+        except:
+            pass
+
+        coordLst = coord.split(".")
+        icoord = int(coordLst[0])
+        jcoord = int(coordLst[1])
+        coordInt = (icoord, jcoord)
+
+        oldValue = self.addendValues[icoord][jcoord]
+        intDialogue = simpleDialogue(self.root, "Choose the new value", oldValue)
+        self.root.wait_window(intDialogue.window)
+
+        self.addendValues[icoord][jcoord] = intDialogue.newValue
+        self.addendUpdateSand(coordInt)
+
+    def addendUpdateSand(self, coord = False):
+        if coord == False:
+            for icoord in range(self.width):
+                for jcoord in range(self.height):
+                    self.addendUpdateSand((icoord, jcoord))
+        else:
+            value = self.addendValues[coord[0]][coord[1]]
+            tag = "{}.{}text".format(str(coord[0]), str(coord[1]))
+            self.addendSandCanvas.itemconfig(tag, text = str(value))
+            tag = tag[:-4]
+            if value <= 0:
+                fillColor = self.colors[0]
+            if value == 1:
+                fillColor = self.colors[1]
+            if value == 2:
+                fillColor = self.colors[2]
+            if value == 3:
+                fillColor = self.colors[3]
+            if value >= 4:
+                fillColor = self.colors[4]
+            self.addendSandCanvas.itemconfig(tag, fill = fillColor)
+
+class simpleDialogue:
+    def __init__(self, root, prompt, oldValue):
+        self.newValue = oldValue
+        self.window = Toplevel(root)
+        Label(self.window, text = prompt).pack(fill = X, side = TOP)
+
+        self.entry = Entry(self.window)
+        self.entry.pack(fill = X, side = TOP)
+
+        okButton = Button(self.window, text = "OK", command = self.ok)
+        okButton.pack(side = LEFT)
+        cancelButton = Button(self.window, text = "Cancel", command = self.cancel)
+        cancelButton.pack(side = RIGHT)
+
+    def cancel(self):
+        self.window.destroy()
+
+    def ok(self):
+        self.newValue = int(self.entry.get())
+        self.window.destroy()
+
+Sandpile(41, 41)
+
+mainloop()

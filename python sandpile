@@ -330,12 +330,12 @@ class Sandpile:
 
 
     def limitedGenerations(self, count):
-        stacked = self.oneGeneration()
-
-        self.updateSand()
-        if stacked and self.count < count:
+        if self.count < count:
+            stacked = self.oneGeneration()
             self.count += 1
-            self.sandCanvas.after(self.speed, lambda: self.limitedGenerations(count))
+            self.updateSand()
+            if stacked and self.count < count:
+                self.sandCanvas.after(self.speed, lambda: self.limitedGenerations(count))
 
     def addendMultiGenerations(self, event):
         intDialogue = simpleDialogue(self.root, "How many generations should be performed?", 0)
@@ -347,12 +347,12 @@ class Sandpile:
 
 
     def addendLimitedGenerations(self, count):
-        stacked = self.addendOneGeneration()
-
-        self.addendUpdateSand()
-        if stacked and self.count < count:
+        if self.count < count:
+            stacked = self.addendOneGeneration()
             self.count += 1
-            self.addendSandCanvas.after(self.speed, lambda: self.addendLimitedGenerations(count))
+            self.addendUpdateSand()
+            if stacked and self.count < count:
+                self.addendSandCanvas.after(self.speed, lambda: self.addendLimitedGenerations(count))
 
     def test(self):
         print("test")

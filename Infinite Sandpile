@@ -1,0 +1,319 @@
+import numpy as np
+from numpy import *
+import tkinter as tk
+from tkinter import *
+import PIL
+from PIL import Image
+
+
+class MenuDialogue:
+    def __init__(self, parent, options=("A", "B", "C", "D"), prompt="", title=None, style="MULTIPLE"):
+        self.selected = None
+        self.window = Toplevel()
+        self.window.title(title)
+        self.options = options
+        Label(self.window, text=prompt).pack(side=TOP)
+        if style == "MULTIPLE":
+            self.menu = Listbox(self.window, selectmode=MULTIPLE)
+        elif style == "SINGLE":
+            self.menu = Listbox(self.window, selectmode=SINGLE)
+        elif style == "EXTENDED":
+            self.menu = Listbox(self.window, selectmode=EXTENDED)
+        self.menu.pack(side=TOP)
+
+        for option in options:
+            self.menu.insert(END, option)
+
+        width0 = 200
+        width1 = self.window.winfo_reqwidth()
+        width = max(width0, width1)
+
+        buttonFrame = Frame(self.window, height=22, width=width)
+        buttonFrame.pack(fill=X, side=TOP)
+        buttonFrame.pack_propagate(0)
+
+        buttonFrameLeft = Frame(buttonFrame, width=width // 2, height=22)
+        buttonFrameLeft.pack(side=LEFT)
+        buttonFrameLeft.pack_propagate(0)
+
+        buttonFrameRight = Frame(buttonFrame, width=width // 2, height=22)
+        buttonFrameRight.pack(side=RIGHT)
+        buttonFrameRight.pack_propagate(0)
+
+        Button(buttonFrameLeft, text="OK", command=self.OK, width=width).pack(fill=X)
+        Button(buttonFrameRight, text="cancel", command=self.cancel, width=width).pack(fill=X)
+
+        self.window.bind("<Return>", self.OK)
+        self.window.bind("<Escape>", self.cancel)
+
+        parent.wait_window(self.window)
+
+    def OK(self, event=None):
+        self.selected = self.menu.curselection()
+        self.window.destroy()
+        input = self.selected
+        self.selected = [self.options[int(indx)] for indx in input]
+
+    def cancel(self, event=None):
+        self.window.destroy()
+
+    def get(self):
+        return self.selected
+
+
+class EntryDialogue:
+    def __init__(self, parent, prompt="", oldValue=None, title=None, varType="int"):
+        self.value = oldValue
+        self.varType = varType
+        self.window = Toplevel()
+
+        Label(self.window, text=prompt).pack(fill=X, side=TOP)
+        self.window.title(title)
+
+        self.var = StringVar()
+        self.var.set(oldValue)
+        self.entry = Entry(self.window, textvariable=self.var)
+        self.entry.pack(fill=X, side=TOP)
+
+        width = self.window.winfo_reqwidth() // 2
+
+        buttonFrame = Frame(self.window, height=22)
+        buttonFrame.pack(fill=X, side=BOTTOM)
+        buttonFrame.pack_propagate(0)
+
+        buttonFrameLeft = Frame(buttonFrame, width=width, height=22)
+        buttonFrameLeft.pack(side=LEFT)
+        buttonFrameLeft.pack_propagate(0)
+
+        buttonFrameRight = Frame(buttonFrame, width=width, height=22)
+        buttonFrameRight.pack(side=RIGHT)
+        buttonFrameRight.pack_propagate(0)
+
+        Button(buttonFrameLeft, text="OK", command=self.OK, width=width).pack(fill=X)
+        Button(buttonFrameRight, text="cancel", command=self.cancel, width=width).pack(fill=X)
+
+        self.entry.bind("<Return>", self.OK)
+        self.entry.focus_set()
+        self.window.bind("<Escape>", self.cancel)
+
+        parent.wait_window(self.window)
+
+    def cancel(self, event=None):
+        self.window.destroy()
+
+    def OK(self, event=None):
+        input = self.entry.get()
+        if self.varType == "int":
+            try:
+                self.value = int(input)
+                self.window.destroy()
+            except:
+                pass
+
+        else:
+            self.value = input
+            self.window.destroy()
+
+    def get(self):
+        return self.value
+
+
+class Interface:
+    def __init__(self, width=130, height=70):
+        self.root = tk.Tk()
+        sizeStr = "{}x{}".format(str(width), str(height))
+        self.root.geometry(sizeStr)
+        self.root.pack_propagate(0)
+        self.root.title("Pile")
+
+        self.cellShape = "Square"
+        self.directions = ((1, 0), (0, 1), (-1, 0), (0, -1))
+        self.directionNum = len(self.directions)
+        print(self.directionNum)
+        self.colors = [255, 191, 127, 63, 0]
+        self.cells = {}
+
+        self.shapeButton = Button(self.root, text=self.cellShape, command=self.changeShape)
+        self.shapeButton.pack(side=TOP, fill=X)
+        self.rulesButton = Button(self.root, text="Colors")
+        self.rulesButton.pack(side=TOP, fill=X)
+        self.generationButton = Button(self.root, text="Height", command=self.generate)
+        self.generationButton.pack(side=TOP, fill=X)
+
+        self.root = mainloop()
+
+    def changeShape(self):
+        newShape = MenuDialogue(self.root, options=("Square", "Moore", "Hex"), prompt="Choose the shape of the cell",
+                                title="Change Shape", style="SINGLE").get()[0]
+        if newShape is not None:
+            self.shapeButton.config(text=newShape)
+            self.cellShape = newShape
+
+            if newShape == "Square":
+                self.directions = ((1, 0), (0, 1), (-1, 0), (0, -1))
+                self.colors = [255, 191, 127, 63, 0]
+            elif newShape == "Moore":
+                self.directions = ((1, 0), (1, 1), (0, 1), (-1, 1), (-1, 0), (-1, -1), (0, -1), (1, -1))
+                self.colors = [255, 223, 191, 159, 127, 95, 63, 31, 0]
+            elif newShape == "Hex":
+                self.directions = ((1, 0), (1, 1), (0, 1), (-1, 0), (-1, -1), (0, -1))
+                self.colors = [255, 213, 170, 128, 85, 42, 0]
+            self.directionNum = len(self.directions)
+
+    def generate(self):
+        height = EntryDialogue(self.root, prompt="How tall will the starting pile be?").get()
+        print(height)
+        if height == None:
+            pass
+
+        else:
+            self.generation(height)
+            self.render()
+
+    def generation(self, height=0):
+        tooTall = True
+        self.cells[(0, 0)] = height
+        checks = self.cells
+
+        while tooTall == True:
+            changes = {}
+            tooTall = False
+            for cell in checks:
+                if self.cells[cell] >= self.directionNum:
+                    tooTall = True
+                    neighbors = self.getNeighbors(cell)
+                    for neighbor in neighbors:
+                        newHeight = changes.get(neighbor, 0) + 1
+                        changes[neighbor] = newHeight
+                    newHeight = changes.get(cell, 0) - self.directionNum
+                    changes[cell] = newHeight
+
+            checks = []
+            for cell in changes:
+                checks.append(cell)
+                newHeight = self.cells.get(cell, 0) + changes[cell]
+                self.cells[cell] = newHeight
+
+    def getNeighbors(self, cell):
+        neighbors = []
+        for direction in self.directions:
+            newCell = (cell[0] + direction[0], cell[1] + direction[1])
+            neighbors.append(newCell)
+
+        return neighbors
+
+
+    def render(self):
+        values = []
+        for cell in self.cells:
+            if self.cells[cell] != 0:
+                values.append((cell, self.cells[cell]))
+
+        PileImage(self.cellShape, self.cells, self.colors)
+
+        self.cells = {}
+
+
+class PileImage:
+    def __init__(self, shape, values, colors):
+        self.values = values
+        self.cells = []
+        for value in self.values:
+            if self.values[value] != 0:
+                self.cells.append(value)
+        self.colors = colors
+
+        if shape == "Square" or shape == "Moore":
+            self.squareRender()
+
+        elif shape == "Hex":
+            self.hexRender()
+
+        else:
+            print(shape)
+
+    def squareRender(self):
+        minX = self.cells[0][0]
+        maxX = self.cells[0][0]
+        minY = self.cells[0][1]
+        maxY = self.cells[0][1]
+        for location in self.cells:
+            if location[0] < minX:
+                minX = location[0]
+            elif location[0] > maxX:
+                maxX = location[0]
+
+            if location[1] < minY:
+                minY = location[1]
+            elif location[1] > maxY:
+                maxY = location[1]
+
+        xRange = maxX - minX + 1
+        yRange = maxY - minY + 1
+        print(xRange, yRange)
+
+        preArray = []
+        for j in range(yRange):
+            row = []
+            for i in range(xRange):
+                coord = (minX + i, minY + j)
+                if coord not in self.cells:
+                    row.append(self.colors[0])
+                else:
+                    color = self.colors[self.values[coord]]
+                    row.append(color)
+            preArray.append(row[:])
+        imArray = array(preArray, dtype=uint8)
+        self.im = Image.fromarray(imArray, "L")
+        self.im.show("Vant")
+
+    def hexRender(self):
+        minX = self.cells[0][0]
+        maxX = self.cells[0][0]
+        minY = self.cells[0][1]
+        maxY = self.cells[0][1]
+        for location in self.cells:
+            ersatzX = location[0] + location[1] // 2
+            if ersatzX < minX:
+                minX = ersatzX
+            elif ersatzX > maxX:
+                maxX = ersatzX
+
+            if location[1] < minY:
+                minY = location[1]
+            elif location[1] > maxY:
+                maxY = location[1]
+
+        xRange = maxX - minX + 1
+        yRange = maxY - minY + 1
+        print(xRange, yRange)
+
+        if xRange < 0 or yRange < 0:
+            print(self.cells)
+
+        preArray = []
+        for j in range(yRange):
+            row = []
+            for column in range(yRange - j):
+                row.append(self.colors[0])
+            for i in range(xRange):
+                coord = (minX + i, minY + j)
+                if coord not in self.cells:
+                    color = self.colors[0]
+                else:
+                    color = self.colors[self.values[coord]]
+
+                for insertion in range(2):
+                    row.append(color)
+            for column in range(j):
+                row.append(self.colors[0])
+
+            for insertion in range(2):
+                preArray.append(row[:])
+
+        imArray = array(preArray, dtype=uint8)
+        self.im = Image.fromarray(imArray, "L")
+        self.im.show("Vant")
+
+
+pile = Interface()

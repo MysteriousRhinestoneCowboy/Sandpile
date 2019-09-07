@@ -4,6 +4,7 @@ import tkinter as tk
 from tkinter import *
 import PIL
 from PIL import Image
+import tkcolorpicker
 
 
 class MenuDialogue:
@@ -118,6 +119,127 @@ class EntryDialogue:
         return self.value
 
 
+class ColorDialogue:
+    def __init__(self, parent, colors, labels, format="hex"):
+        self.items = labels
+        self.format = format
+
+        if self.format == "RGBA":
+            self.colors = []
+            for color in colors:
+                RGBColor = (color[0], color[1], color[2])
+                self.colors.append(RGBColor)
+        else:
+            self.colors = colors
+
+        self.values = colors[:]
+        self.window = Toplevel(parent)
+        self.window.title("Set Colors")
+        self.window.bind("<Escape>", self.cancel)
+        self.window.bind("<Return>", self.ok)
+        self.labels = {}
+
+        count = 0
+        for item in labels:
+            fore = self.contrast(self.colors[count])
+            label = Label(self.window, text=item, bg=self.colors[count], fg=fore, width=14)
+            label.grid(row=2 * count, column=0)
+            Button(self.window, text="Change", width=6, command=lambda count=count: self.chooseColor(count)).grid(row=2 * count, column=1)
+            self.labels[item] = label
+            Frame(self.window, height=5, width=100).grid(row=2 * count + 1, columnspan=2)
+            count += 1
+
+        buttonFrame = Frame(self.window, height=20, width=200)
+        buttonFrame.grid(row=count * 2, columnspan=2)
+        buttonFrame.pack_propagate(0)
+        Button(buttonFrame, text="OK", command=self.ok, width=10).pack(side=LEFT)
+        Button(buttonFrame, text="cancel", command=self.cancel, width=10).pack(side=RIGHT)
+
+        parent.wait_window(self.window)
+
+    def contrast(self, color):
+        if self.format == "hex":
+            output = "#"
+            for bit in color:
+                if bit == "0":
+                    output += "7"
+                if bit == "1":
+                    output += "8"
+                if bit == "2":
+                    output += "9"
+                if bit == "3":
+                    output += "A"
+                if bit == "4":
+                    output += "B"
+                if bit == "5":
+                    output += "C"
+                if bit == "6":
+                    output += "D"
+                if bit == "7":
+                    output += "E"
+                if bit == "8":
+                    output += "F"
+                if bit == "9":
+                    output += "0"
+                if bit == "A":
+                    output += "1"
+                if bit == "B":
+                    output += "2"
+                if bit == "C":
+                    output += "3"
+                if bit == "D":
+                    output += "4"
+                if bit == "E":
+                    output += "5"
+                if bit == "F":
+                    output += "6"
+
+        elif self.format== "RGB" or self.format == "RGBA":
+            output = []
+            for indx in range(3):
+                bit = (color[indx] + 128) % 256
+                output.append(bit)
+
+            if self.format == "RGBA":
+                output.append(255)
+            tuple(output)
+
+        return output
+
+
+    def ok(self, event=None):
+        self.window.destroy()
+
+    def cancel(self, event=None):
+        self.values = self.colors
+        self.window.destroy()
+
+    def get(self):
+        return self.values
+
+    def chooseColor(self, indx):
+        print(indx)
+        startColor = self.values[indx]
+        color = self.getColor(startColor)
+        if color == None:
+            pass
+        else:
+            contrast = self.contrast(color)
+            self.values[indx] = color
+            label = self.labels[self.items[indx]]
+            label.config(bg=color, fg=contrast)
+
+    def getColor(self, startColor):
+        color = tkcolorpicker.askcolor(color=startColor, parent=self.window)
+        if self.format == "RGB":
+            return color[0]
+        elif self.format == "RGBA":
+            output = (color[0][0], color[0][1], color[0][2], 255)
+            return output
+        elif self.format == "hex":
+            return color[1]
+
+
 class Interface:
     def __init__(self, width=130, height=70):
         self.root = tk.Tk()
@@ -129,35 +251,41 @@ class Interface:
         self.cellShape = "Square"
         self.directions = ((1, 0), (0, 1), (-1, 0), (0, -1))
         self.directionNum = len(self.directions)
-        print(self.directionNum)
-        self.colors = [255, 191, 127, 63, 0]
+        self.colors = ["#003300", "#005500", "#007700", "#009900",
+                       "#00BB00", "#00DD00", "#00FF00"]
         self.cells = {}
 
         self.shapeButton = Button(self.root, text=self.cellShape, command=self.changeShape)
         self.shapeButton.pack(side=TOP, fill=X)
-        self.rulesButton = Button(self.root, text="Colors")
+        self.rulesButton = Button(self.root, text="Colors", command=self.changeColor)
         self.rulesButton.pack(side=TOP, fill=X)
         self.generationButton = Button(self.root, text="Height", command=self.generate)
         self.generationButton.pack(side=TOP, fill=X)
 
         self.root = mainloop()
 
+    def changeColor(self):
+        neighbors = []
+        for i in range(1, self.directionNum):
+            neighbors.append(str(i))
+        self.colors = ColorDialogue(self.root, self.colors, neighbors).get()
+
     def changeShape(self):
-        newShape = MenuDialogue(self.root, options=("Square", "Moore", "Hex"), prompt="Choose the shape of the cell",
-                                title="Change Shape", style="SINGLE").get()[0]
+        newShape = MenuDialogue(self.root, options=("Square", "Moore", "Hex", "Tri"), prompt="Choose the shape of the cell",
+                                title="Change Shape", style="SINGLE").get()
         if newShape is not None:
+            newShape = newShape[0]
             self.shapeButton.config(text=newShape)
             self.cellShape = newShape
 
             if newShape == "Square":
                 self.directions = ((1, 0), (0, 1), (-1, 0), (0, -1))
-                self.colors = [255, 191, 127, 63, 0]
             elif newShape == "Moore":
                 self.directions = ((1, 0), (1, 1), (0, 1), (-1, 1), (-1, 0), (-1, -1), (0, -1), (1, -1))
-                self.colors = [255, 223, 191, 159, 127, 95, 63, 31, 0]
             elif newShape == "Hex":
                 self.directions = ((1, 0), (1, 1), (0, 1), (-1, 0), (-1, -1), (0, -1))
-                self.colors = [255, 213, 170, 128, 85, 42, 0]
+            elif newShape == "Tri":
+                self.directions = (((0, 0), (1, 0), (0, -1)))
             self.directionNum = len(self.directions)
 
     def generate(self):
@@ -172,7 +300,10 @@ class Interface:
 
     def generation(self, height=0):
         tooTall = True
-        self.cells[(0, 0)] = height
+        if self.cellShape == "Tri":
+            self.cells[(0, 0, 1)] = height
+        else:
+            self.cells[(0, 0)] = height
         checks = self.cells
 
         while tooTall == True:
@@ -196,9 +327,15 @@ class Interface:
 
     def getNeighbors(self, cell):
         neighbors = []
-        for direction in self.directions:
-            newCell = (cell[0] + direction[0], cell[1] + direction[1])
-            neighbors.append(newCell)
+        if self.cellShape == "Tri":
+            orientation = cell[2]
+            for direction in self.directions:
+                newCell = (cell[0] + orientation * direction[0], cell[1] + orientation * direction[1], -1 * orientation)
+                neighbors.append(newCell)
+        else:
+            for direction in self.directions:
+                newCell = (cell[0] + direction[0], cell[1] + direction[1])
+                neighbors.append(newCell)
 
         return neighbors
 
@@ -209,9 +346,44 @@ class Interface:
             if self.cells[cell] != 0:
                 values.append((cell, self.cells[cell]))
 
-        PileImage(self.cellShape, self.cells, self.colors)
+        colors = self.hex2RGB()
+
+        PileImage(self.cellShape, self.cells, colors)
 
         self.cells = {}
+
+    def hex2RGB(self):
+        colors = [(0, 0, 0, 0)]
+        indx = 0
+        for color in self.colors:
+            colorNumerals = []
+            for bit in color:
+                if bit == "#":
+                    pass
+                elif bit == "A":
+                    colorNumerals.append(10)
+                elif bit == "B":
+                    colorNumerals.append(11)
+                elif bit == "C":
+                    colorNumerals.append(12)
+                elif bit == "D":
+                    colorNumerals.append(13)
+                elif bit == "E":
+                    colorNumerals.append(14)
+                elif bit == "F":
+                    colorNumerals.append(15)
+                else:
+                    colorNumerals.append(int(bit))
+
+            redBit = colorNumerals[0] * 16 + colorNumerals[1]
+            greenBit = colorNumerals[2] * 16 + colorNumerals[3]
+            blueBit = colorNumerals[4] * 16 + colorNumerals[5]
+
+            colors.append((redBit, greenBit, blueBit, 255))
+            indx += 1
+
+        return colors
+        print(self.colors)
 
 
 class PileImage:
@@ -229,8 +401,8 @@ class PileImage:
         elif shape == "Hex":
             self.hexRender()
 
-        else:
-            print(shape)
+        elif shape == "Tri":
+            self.triRender()
 
     def squareRender(self):
         minX = self.cells[0][0]
@@ -252,20 +424,16 @@ class PileImage:
         yRange = maxY - minY + 1
         print(xRange, yRange)
 
-        preArray = []
+        preArray = np.zeros((yRange, xRange, 4), dtype=np.uint8)
         for j in range(yRange):
-            row = []
             for i in range(xRange):
                 coord = (minX + i, minY + j)
                 if coord not in self.cells:
-                    row.append(self.colors[0])
+                    preArray[j, i] = self.colors[0]
                 else:
-                    color = self.colors[self.values[coord]]
-                    row.append(color)
-            preArray.append(row[:])
-        imArray = array(preArray, dtype=uint8)
-        self.im = Image.fromarray(imArray, "L")
-        self.im.show("Vant")
+                    preArray[j, i] = self.colors[self.values[coord]]
+        self.im = Image.fromarray(preArray, "RGBA")
+        self.im.show()
 
     def hexRender(self):
         minX = self.cells[0][0]
@@ -288,32 +456,72 @@ class PileImage:
         yRange = maxY - minY + 1
         print(xRange, yRange)
 
-        if xRange < 0 or yRange < 0:
-            print(self.cells)
-
-        preArray = []
+        preArray = np.zeros((2 * yRange, 2 * xRange + yRange, 4), dtype=np.uint8)
         for j in range(yRange):
-            row = []
-            for column in range(yRange - j):
-                row.append(self.colors[0])
+            y = 2 * j
             for i in range(xRange):
+                x = 2 * i + yRange - j
                 coord = (minX + i, minY + j)
                 if coord not in self.cells:
                     color = self.colors[0]
                 else:
                     color = self.colors[self.values[coord]]
+                preArray[y, x] = color
+                preArray[y + 1, x] = color
+                preArray[y, x + 1] = color
+                preArray[y + 1, x + 1] = color
+        self.im = Image.fromarray(preArray, "RGBA")
+        self.im.show()
 
-                for insertion in range(2):
-                    row.append(color)
-            for column in range(j):
-                row.append(self.colors[0])
+    def triRender(self):
+        minX = self.cells[0][0]
+        maxX = self.cells[0][0]
+        minY = self.cells[0][1]
+        maxY = self.cells[0][1]
+        for location in self.cells:
+            ersatzX = location[0] + location[1] // 2
+            if location[2] == -1:
+                ersatzX += 1
 
-            for insertion in range(2):
-                preArray.append(row[:])
+            if ersatzX < minX:
+                minX = ersatzX
+            elif ersatzX > maxX:
+                maxX = ersatzX
 
-        imArray = array(preArray, dtype=uint8)
-        self.im = Image.fromarray(imArray, "L")
-        self.im.show("Vant")
+            if location[1] < minY:
+                minY = location[1]
+            elif location[1] > maxY:
+                maxY = location[1]
+
+        xRange = maxX - minX + 1
+        yRange = maxY - minY + 1
+        print(xRange, yRange)
+
+        preArray = np.zeros((2 * yRange, 4 * xRange + yRange, 4), dtype=np.uint8)
+        for j in range(yRange):
+            y = 2 * j
+            for i in range(xRange):
+                x = 4 * i + yRange - 2 * j
+                coord0 = (minX + i, minY + j, -1)
+                if coord0 not in self.cells:
+                    color0 = self.colors[0]
+                else:
+                    color0 = self.colors[self.values[coord0]]
+                coord1 = (minX + i, minY + j, 1)
+                if coord1 not in self.cells:
+                    color1 = self.colors[0]
+                else:
+                    color1 = self.colors[self.values[coord1]]
+                preArray[y, x] = color0
+                preArray[y + 1, x - 1] = color0
+                preArray[y + 1, x] = color0
+                preArray[y + 1, x + 1] = color0
+                preArray[y, x + 1] = color1
+                preArray[y, x + 2] = color1
+                preArray[y, x + 3] = color1
+                preArray[y + 1, x + 2] = color1
+        self.im = Image.fromarray(preArray, "RGBA")
+        self.im.show()
 
 
 pile = Interface()
